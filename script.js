@@ -135,6 +135,20 @@ function loadCache() {
 }
 
 // =============================================
+//  EXTRAÇÃO ROBUSTA DE PRODUTOS DA API
+// =============================================
+function extractProducts(rawData) {
+  if (Array.isArray(rawData)) return rawData;
+  const keys = ['items', 'data', 'products', 'featured', 'result', 'results'];
+  for (const key of keys) {
+    if (Array.isArray(rawData[key])) return rawData[key];
+  }
+  const arrays = Object.values(rawData).filter(Array.isArray);
+  if (arrays.length > 0) return arrays[0];
+  return [];
+}
+
+// =============================================
 //  FETCH COM RETRY
 // =============================================
 async function fetchWithRetry(url, maxRetries) {
@@ -167,9 +181,9 @@ async function init() {
   // 1. Tentar buscar da API com retry
   try {
     const rawData = await fetchWithRetry(API_URL, MAX_RETRIES);
-    const items = Array.isArray(rawData) ? rawData : (rawData.items || rawData.data || rawData.products || []);
+    const items = extractProducts(rawData);
     allProducts = prepareProducts(items);
-    saveCache(allProducts);
+    if (allProducts.length > 0) saveCache(allProducts);
     showError(null);
   } catch (err) {
     // 2. API falhou — tentar cache do LocalStorage
