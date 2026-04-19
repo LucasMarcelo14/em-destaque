@@ -1,6 +1,3 @@
-// =============================================
-//  MOCK DATA - lista com dados "problemáticos"
-// =============================================
 const mockProducts = [
   { id: 101, title: "Notebook Gamer",   price: 4500,      highlight: true  },
   { id: 102, title: "Mouse RGB",        price: "200",     highlight: "true" },
@@ -10,20 +7,13 @@ const mockProducts = [
   { id: 106, title: "Teclado Mecânico", price: undefined, highlight: true  },
 ];
 
-// =============================================
-//  CONSTANTES
-// =============================================
-const API_URL         = "https://backend-node-nmze.onrender.com/featured";
-const MAX_RETRIES     = 5;
-const CACHE_KEY       = "featuredProducts_cache";
-const CACHE_TTL_MS    = 2 * 60 * 1000; // 2 minutos
+const API_URL      = "https://backend-node-nmze.onrender.com/featured";
+const MAX_RETRIES  = 5;
+const CACHE_KEY    = "featuredProducts_cache";
+const CACHE_TTL_MS = 2 * 60 * 1000;
 
-// Guarda os produtos prontos para filtrar
 let allProducts = [];
 
-// =============================================
-//  NORMALIZAÇÃO
-// =============================================
 function normalizeProduct(p) {
   return {
     id:        p.id,
@@ -33,29 +23,16 @@ function normalizeProduct(p) {
   };
 }
 
-// =============================================
-//  VALIDAÇÃO
-// =============================================
 function validateProduct(p) {
-  return (
-    p.price > 0 &&
-    !isNaN(p.price)
-  );
+  return p.price > 0 && !isNaN(p.price);
 }
 
-// =============================================
-//  PREPARAR (normalizar + validar + filtrar highlight)
-// =============================================
-function prepareProducts(data) {
-  return data
-    .map(normalizeProduct)
-    .filter(validateProduct)
-    .filter(p => p.highlight);
+function prepareProducts(data, filterHighlight = true) {
+  let result = data.map(normalizeProduct).filter(validateProduct);
+  if (filterHighlight) result = result.filter(p => p.highlight);
+  return result;
 }
 
-// =============================================
-//  RENDERIZAÇÃO
-// =============================================
 function renderProducts(products) {
   const container = document.getElementById("featuredProducts");
 
@@ -68,16 +45,13 @@ function renderProducts(products) {
     .map(p => `
       <div class="card">
         <span class="card-badge">Destaque</span>
-<h3 class="cardTitle">${p.title}</h3>
+        <h3 class="cardTitle">${p.title}</h3>
         <p class="cardPrice">R$ ${p.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
       </div>
     `)
     .join("");
 }
 
-// =============================================
-//  FILTROS
-// =============================================
 function applyFilters() {
   const nameFilter  = document.getElementById("filterName").value.toLowerCase().trim();
   const priceFilter = parseFloat(document.getElementById("filterMaxPrice").value);
@@ -92,14 +66,11 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  document.getElementById("filterName").value      = "";
-  document.getElementById("filterMaxPrice").value  = "";
+  document.getElementById("filterName").value     = "";
+  document.getElementById("filterMaxPrice").value = "";
   renderProducts(allProducts);
 }
 
-// =============================================
-//  LOADING / ERRO
-// =============================================
 function showLoading(visible) {
   document.getElementById("loading").classList.toggle("hidden", !visible);
 }
@@ -114,9 +85,6 @@ function showError(message) {
   }
 }
 
-// =============================================
-//  LOCAL STORAGE - CACHE 2 MINUTOS
-// =============================================
 function saveCache(data) {
   const payload = { timestamp: Date.now(), data };
   localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
@@ -127,16 +95,13 @@ function loadCache() {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const { timestamp, data } = JSON.parse(raw);
-    if (Date.now() - timestamp > CACHE_TTL_MS) return null; // expirado
+    if (Date.now() - timestamp > CACHE_TTL_MS) return null;
     return data;
   } catch {
     return null;
   }
 }
 
-// =============================================
-//  EXTRAÇÃO ROBUSTA DE PRODUTOS DA API
-// =============================================
 function extractProducts(rawData) {
   if (Array.isArray(rawData)) return rawData;
   const keys = ['items', 'data', 'products', 'featured', 'result', 'results'];
@@ -148,21 +113,15 @@ function extractProducts(rawData) {
   return [];
 }
 
-// =============================================
-//  FETCH COM RETRY
-// =============================================
 async function fetchWithRetry(url, maxRetries) {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (err) {
       lastError = err;
-      console.warn(`Tentativa ${attempt}/${maxRetries} falhou:`, err.message);
-      // Pequena espera crescente entre tentativas
       if (attempt < maxRetries) {
         await new Promise(r => setTimeout(r, 500 * attempt));
       }
@@ -171,34 +130,24 @@ async function fetchWithRetry(url, maxRetries) {
   throw lastError;
 }
 
-// =============================================
-//  INICIALIZAÇÃO PRINCIPAL
-// =============================================
 async function init() {
   showLoading(true);
   showError(null);
 
-  // 1. Tentar buscar da API com retry
   try {
     const rawData = await fetchWithRetry(API_URL, MAX_RETRIES);
     const items = extractProducts(rawData);
-    allProducts = prepareProducts(items);
+    allProducts = prepareProducts(items, false);
     if (allProducts.length > 0) saveCache(allProducts);
     showError(null);
   } catch (err) {
-    // 2. API falhou — tentar cache do LocalStorage
     const cached = loadCache();
     if (cached && cached.length > 0) {
       allProducts = cached;
-      showError(
-        "Não foi possível conectar à API. Exibindo dados salvos anteriormente (cache)."
-      );
+      showError("Não foi possível conectar à API. Exibindo dados salvos anteriormente (cache).");
     } else {
-      // 3. Sem API e sem cache — usar MOCK
       allProducts = prepareProducts(mockProducts);
-      showError(
-        "Não foi possível conectar à API e não há cache disponível. Exibindo dados locais de demonstração."
-      );
+      showError("Não foi possível conectar à API e não há cache disponível. Exibindo dados locais de demonstração.");
     }
   } finally {
     showLoading(false);
@@ -206,5 +155,4 @@ async function init() {
   }
 }
 
-// Iniciar ao carregar a página
 init();
