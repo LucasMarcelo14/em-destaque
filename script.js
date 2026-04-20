@@ -17,9 +17,9 @@ let allProducts = [];
 function normalizeProduct(p) {
   return {
     id:        p.id,
-    title:     p.title || "Sem nome",
-    price:     Number(p.price),
-    highlight: p.highlight === true || p.highlight === "true",
+    title:     p.title || p.nome || "Sem nome",
+    price:     Number(p.price ?? p.preco),
+    highlight: p.highlight === true || p.highlight === "true" || p.isHighlighted === true || p.isHighlighted === "true",
   };
 }
 
