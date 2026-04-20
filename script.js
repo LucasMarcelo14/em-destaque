@@ -104,12 +104,15 @@ function loadCache() {
 
 function extractProducts(rawData) {
   if (Array.isArray(rawData)) return rawData;
-  const keys = ['items', 'data', 'products', 'featured', 'result', 'results'];
+  if (!rawData || typeof rawData !== 'object') return [];
+  const keys = ['items', 'data', 'products', 'featured', 'result', 'results', 'list', 'records'];
   for (const key of keys) {
     if (Array.isArray(rawData[key])) return rawData[key];
   }
   const arrays = Object.values(rawData).filter(Array.isArray);
   if (arrays.length > 0) return arrays[0];
+  const allNumericKeys = Object.keys(rawData).length > 0 && Object.keys(rawData).every(k => !isNaN(k));
+  if (allNumericKeys) return Object.values(rawData);
   return [];
 }
 
