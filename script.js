@@ -140,8 +140,10 @@ async function init() {
   try {
     const rawData = await fetchWithRetry(API_URL, MAX_RETRIES);
     const items = extractProducts(rawData);
-    allProducts = prepareProducts(items, false);
-    if (allProducts.length > 0) saveCache(allProducts);
+    const prepared = prepareProducts(items, false);
+    if (prepared.length === 0) throw new Error("API retornou 0 produtos válidos");
+    allProducts = prepared;
+    saveCache(allProducts);
     showError(null);
   } catch (err) {
     const cached = loadCache();
